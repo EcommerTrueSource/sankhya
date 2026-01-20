@@ -13,6 +13,7 @@ import br.com.sankhya.jape.vo.EntityVO;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 import br.com.sankhya.truebrands.intelipost.CallService;
 import br.com.sankhya.truebrands.utils.Utils;
+import com.sankhya.util.Base64Impl;
 import com.sankhya.util.JdbcUtils;
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -21,21 +22,23 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class BTASimulaFrete implements AcaoRotinaJava {
+  private static final String				APP_LINK	= "<a title=\"Abrir Tela\" href=\"/mge/system.jsp#app/{0}/{1}&pk-refresh={3}\" target=\"_top\"><u><b>{2}</b></u></a>";
   public void doAction(ContextoAcao context) throws Exception {
+
     Registro[] registros = context.getLinhas();
     if (registros.length > 1)
       context.mostraErro("Selecione apenas um registro!"); 
     Registro linha = registros[0];
     if (linha.getCampo("PENDENTE").equals(new String("N")) && linha
       .getCampo("TIPMOV").equals(new String("P")))
-      throw new Exception("Pedido faturado npode ter frete alterado!"); 
+      throw new Exception("Pedido faturado não pode ter frete alterado!");
     if (!linha.getCampo("TIPMOV").equals(new String("P")) && 
       Utils.existeOrigem((BigDecimal)linha.getCampo("NUNOTA")))
-      throw new Exception("Frete spode ser alterado no pedido!"); 
+      throw new Exception("Frete só pode ser alterado no pedido!");
     if (!linha.getCampo("TIPMOV").equals(new String("P")) && 
       !Utils.existeOrigem((BigDecimal)linha.getCampo("NUNOTA")) && linha
       .getCampo("STATUSNOTA").equals(new String("L")))
-      throw new Exception("Frete spode ser alterado em Nota Fiscal nconfirmada!"); 
+      throw new Exception("Frete só pode ser alterado em Nota Fiscal não confirmada!");
     String idFrete = (String)linha.getCampo("AD_IDSIMFRETE");
     if (idFrete != null);
     JSONObject body = new JSONObject();
@@ -100,12 +103,26 @@ public class BTASimulaFrete implements AcaoRotinaJava {
         negVO.setProperty("CODTIPFRETE", new BigDecimal(negociacao.getInt("delivery_method_id")));
         negVO.setProperty("CODPARC", buscaCodparc(BigDecimal.valueOf(negociacao.getInt("delivery_method_id"))));
         dwfEntityFacade.createEntity("AD_SIMFRETENEG", (EntityVO)negVO);
-      } 
-      context.setMensagemRetorno("Processo Finalizado!<br><br><b>ID Simula" + json.getJSONObject("content").get("id").toString());
+      }
+      String id = json.getJSONObject("content").get("id").toString();
+      String retorno = getLink(id,id);
+      context.setMensagemRetorno("Processo Finalizado!<br><br><b>ID Simula" + retorno);
+//      context.setMensagemRetorno("Processo Finalizado!<br><br><b>ID Simula" + json.getJSONObject("content").get("id").toString());
     } catch (Exception e) {
       e.printStackTrace();
       context.mostraErro(e.getMessage());
     } 
+  }
+
+  private String getLink(String descricao, String id) {
+    String pk = "{\"ID\":\"{0}\"}".replace("{0}", id);
+
+    var url = APP_LINK.replace("{0}", Base64Impl.encode("br.com.sankhya.menu.adicional.AD_SIMFRETE".getBytes()).trim());
+    url = url.replace("{1}", Base64Impl.encode(pk.getBytes()).trim());
+    url = url.replace("{2}", descricao);
+    url = url.replace("{3}", "${System.currentTimeMillis()}");
+
+    return url;
   }
   
   private static BigDecimal buscaCodparc(BigDecimal cod) throws Exception {

@@ -43,9 +43,9 @@ public class EvtEnviarDocumento implements EventoProgramavelJava {
       StringBuilder mensagem = new StringBuilder();
       mensagem.append("<strong>Processo Finalizado!</strong><br><br>");
       if (!"A".equals(tgfCabVO.asString("STATUSNFE")))
-        return; 
+        return;
       if ("C".equals(tgfCabVO.asString("AD_STATUSINTELIPOST")))
-        return; 
+        return;
       Collection<DynamicVO> resultadosTOP = JapeFactory.dao("TipoOperacao").find("CODTIPOPER = ?", new Object[] { tgfCabVO.asBigDecimal("CODTIPOPER") });
       DynamicVO tgfTopVO = resultadosTOP.stream().sorted(Comparator.comparing(vo -> vo.asBigDecimal("DHALTER"))).findFirst().orElse(null);
       String topLiberada = tgfTopVO.asString("AD_INTINTELIPOST");
@@ -105,11 +105,11 @@ public class EvtEnviarDocumento implements EventoProgramavelJava {
       body.put("delivery_method_id", parceiroTransportadoraVO.asBigDecimalOrZero("AD_CODTIPFRETE"));
       body.put("delivery_method_external_id", parceiroTransportadoraVO.asBigDecimalOrZero("AD_CODTIPFRETE"));
       JSONObject end_customer = new JSONObject();
-      String Telefone = (parceiroVO.asString("TELEFONE") == null) ? "-" : parceiroVO.asString("TELEFONE");
+      String Telefone = (contatoVO == null) ? parceiroVO.asString("TELEFONE") : ((contatoVO.asString("TELEFONE") == null) ? "" : contatoVO.asString("TELEFONE"));
       BigDecimal QtdCaracteres = new BigDecimal(parceiroVO.asString("NOMEPARC").length());
       end_customer.put("first_name", parceiroVO.asString("NOMEPARC").substring(0, parceiroVO.asString("NOMEPARC").indexOf(" ")));
       end_customer.put("last_name", parceiroVO.asString("NOMEPARC").substring(parceiroVO.asString("NOMEPARC").substring(0, parceiroVO.asString("NOMEPARC").indexOf(" ")).length()));
-      end_customer.put("email", parceiroVO.asString("EMAIL"));
+      end_customer.put("email", (contatoVO == null) ? parceiroVO.asString("EMAIL") : ((contatoVO.asString("EMAIL") == null) ? "" : contatoVO.asString("EMAIL")));
       end_customer.put("phone", formataDados(Telefone));
       end_customer.put("cellphone", formataDados(Telefone));
       end_customer.put("is_company", parceiroVO.asString("TIPPESSOA").equals("J"));
@@ -128,14 +128,30 @@ public class EvtEnviarDocumento implements EventoProgramavelJava {
       NativeSql sql = (NativeSql)null;
       ResultSet volumesPedido = (ResultSet)null;
       sql = new NativeSql(jdbc);
-      sql.appendSql("select\nlevel,\na.*\nfrom(\nselect\nnvl(cab.qtdvol,0) as qtdvol,\nsum(ite.vlrtot-ite.vlrdesc)/nvl(cab.qtdvol,0) as vlrtotitens,\nsum(ite.qtdneg*pro.pesobruto)/nvl(cab.qtdvol,0) as weight,\nsum(ite.qtdneg*pro.largura)/nvl(cab.qtdvol,0) as width,\nsum(ite.qtdneg*pro.altura)/nvl(cab.qtdvol,0) as height,\nsum(ite.qtdneg*pro.espessura)/nvl(cab.qtdvol,0) as length,\nsum(ite.qtdneg)/nvl(cab.qtdvol,0) as products_quantity\nfrom tgfite ite\ninner join tgfcab cab on (ite.nunota = cab.nunota)\ninner join tgfpro pro on pro.codprod=ite.codprod\ninner join tgfvol vol on vol.codvol=ite.codvol\nwhere cab.NUNOTA=" + tgfCabVO
-          
-          .asBigDecimalOrZero("NUNOTA") + "\ngroup by\ncab.qtdvol\n)a\nconnect by level  <= A.QTDVOL");
+      sql.appendSql("select\n" +
+              "level,\n" +
+              "a.*\n" +
+              "from(\n" +
+              "select\n" +
+              "nvl(cab.qtdvol,0) as qtdvol,\n" +
+              "sum(ite.vlrtot-ite.vlrdesc)/nvl(cab.qtdvol,0) as vlrtotitens,\n" +
+              "sum(ite.qtdneg*pro.pesobruto)/nvl(cab.qtdvol,0) as weight,\n" +
+              "sum(ite.qtdneg*pro.largura)/nvl(cab.qtdvol,0) as width,\n" +
+              "sum(ite.qtdneg*pro.altura)/nvl(cab.qtdvol,0) as height,\n" +
+              "sum(ite.qtdneg*pro.espessura)/nvl(cab.qtdvol,0) as length,\n" +
+              "sum(ite.qtdneg)/nvl(cab.qtdvol,0) as products_quantity\n" +
+              "from tgfite ite\n" +
+              "inner join tgfcab cab on (ite.nunota = cab.nunota)\n" +
+              "inner join tgfpro pro on pro.codprod=ite.codprod\n" +
+              "inner join tgfvol vol on vol.codvol=ite.codvol\n" +
+              "where cab.NUNOTA= " + tgfCabVO.asBigDecimalOrZero("NUNOTA") +
+              "\ngroup by\ncab.qtdvol\n)a\nconnect by level  <= A.QTDVOL");
       volumesPedido = sql.executeQuery();
-      if (volumesPedido.next()) {
+      int count = 1;
+      while (volumesPedido.next()) {
         JSONObject volume = new JSONObject();
         volume.put("name", "CAIXA");
-        volume.put("shipment_order_volume_number", volumesPedido.getDouble("QTDVOL"));
+        volume.put("shipment_order_volume_number", count);
         volume.put("volume_type_code", "BOX");
         volume.put("weight", volumesPedido.getDouble("weight"));
         volume.put("width", volumesPedido.getDouble("width"));
@@ -163,7 +179,8 @@ public class EvtEnviarDocumento implements EventoProgramavelJava {
         shipment_order_volume_invoice.put("invoice_cfop", cfop);
         volume.put("shipment_order_volume_invoice", shipment_order_volume_invoice);
         shipment_order_volume_array.put(volume);
-      } 
+        count++;
+      }
       body.put("shipment_order_volume_array", shipment_order_volume_array);
       try {
         CallService apiService = new CallService();

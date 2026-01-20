@@ -25,14 +25,18 @@ repositories {
 dependencies {
 
     implementation(mapOf("name" to "mge-modelcore-4.34b156"))
+    implementation(mapOf("name" to "mgecom-model-4.34b156"))
     implementation(mapOf("name" to "jape-4.34b156"))
-    implementation(mapOf("name" to "sanws"))
+    implementation(mapOf("name" to "dwf-4.34b156"))
+    implementation(mapOf("name" to "javax.faces-2.1.13"))
+    implementation(mapOf("name" to "sanws-4.34b156"))
     implementation(mapOf("name" to "sanutil"))
     implementation(mapOf("name" to "SankhyaW-extensions"))
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("org.json:json:20231013")
     implementation("commons-io:commons-io:2.15.1")
-    implementation("org.cuckoo:cuckoo-core:1.0.0")
+    implementation("javax.ejb:javax.ejb-api:3.2")
+
 }
 
 tasks.test {
@@ -70,8 +74,42 @@ tasks.register<Jar>("Gerar Jar Projeto Intelipost") {
     doFirst {
         destinationDirectory.get().asFile.mkdirs()
     }
-    include("br/com/sankhya/true/utils/**")
-    include("br/com/sankhya/true/intelipost/**")
+    include("br/com/sankhya/truebrands/utils/**")
+    include("br/com/sankhya/truebrands/intelipost/**")
+
+    // Inclui apenas os arquivos compilados (.class e recursos)
+    from(sourceSets.main.get().output)
+}
+
+tasks.register<Jar>("Gerar Jar Integracao ML") {
+    group = "0 - true"
+
+    archiveBaseName.set("integracaoml")
+    val incrementVersion = getAndIncrementVersion("version-integracaoml")
+    archiveVersion.set(incrementVersion)
+    destinationDirectory.set(file("dist/integracaoml"))
+    doFirst {
+        destinationDirectory.get().asFile.mkdirs()
+    }
+    include("br/com/sankhya/truebrands/utils/**")
+    include("br/com/sankhya/truebrands/integracaoml/**")
+
+    // Inclui apenas os arquivos compilados (.class e recursos)
+    from(sourceSets.main.get().output)
+}
+
+tasks.register<Jar>("Gerar Jar Projeto Personalizacoes") {
+    group = "0 - true"
+
+    archiveBaseName.set("customizacoes")
+    val incrementVersion = getAndIncrementVersion("version-custom")
+    archiveVersion.set(incrementVersion)
+    destinationDirectory.set(file("dist/customizacoes"))
+    doFirst {
+        destinationDirectory.get().asFile.mkdirs()
+    }
+    include("br/com/sankhya/truebrands/utils/**")
+    include("br/com/sankhya/truebrands/personalizacoes/**")
 
     // Inclui apenas os arquivos compilados (.class e recursos)
     from(sourceSets.main.get().output)

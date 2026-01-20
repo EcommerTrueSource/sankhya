@@ -102,11 +102,11 @@ public class BTAEnviarDocumento implements AcaoRotinaJava {
     body.put("delivery_method_id", parceiroTransportadoraVO.asBigDecimalOrZero("AD_CODTIPFRETE"));
     body.put("delivery_method_external_id", parceiroTransportadoraVO.asBigDecimalOrZero("AD_CODTIPFRETE"));
     JSONObject end_customer = new JSONObject();
-    String Telefone = (parceiroVO.asString("TELEFONE") == null) ? "-" : parceiroVO.asString("TELEFONE");
+    String Telefone = (contatoVO == null) ? parceiroVO.asString("TELEFONE") : ((contatoVO.asString("TELEFONE") == null) ? "" : contatoVO.asString("TELEFONE"));
     BigDecimal QtdCaracteres = new BigDecimal(parceiroVO.asString("NOMEPARC").length());
     end_customer.put("first_name", parceiroVO.asString("NOMEPARC").substring(0, parceiroVO.asString("NOMEPARC").indexOf(" ")));
     end_customer.put("last_name", parceiroVO.asString("NOMEPARC").substring(parceiroVO.asString("NOMEPARC").substring(0, parceiroVO.asString("NOMEPARC").indexOf(" ")).length()));
-    end_customer.put("email", parceiroVO.asString("EMAIL"));
+    end_customer.put("email", (contatoVO == null) ? parceiroVO.asString("EMAIL") : ((contatoVO.asString("EMAIL") == null) ? "" : contatoVO.asString("EMAIL")));
     end_customer.put("phone", formataDados(Telefone));
     end_customer.put("cellphone", formataDados(Telefone));
     end_customer.put("is_company", parceiroVO.asString("TIPPESSOA").equals("J"));
@@ -130,10 +130,11 @@ public class BTAEnviarDocumento implements AcaoRotinaJava {
         
         .asBigDecimalOrZero("NUNOTA") + "\ngroup by\ncab.qtdvol\n)a\nconnect by level  <= A.QTDVOL");
     volumesPedido = sql.executeQuery();
-    if (volumesPedido.next()) {
+    int count = 1;
+    while (volumesPedido.next()) {
       JSONObject volume = new JSONObject();
       volume.put("name", "CAIXA");
-      volume.put("shipment_order_volume_number", volumesPedido.getDouble("QTDVOL"));
+      volume.put("shipment_order_volume_number", count);
       volume.put("volume_type_code", "BOX");
       volume.put("weight", volumesPedido.getDouble("weight"));
       volume.put("width", volumesPedido.getDouble("width"));
@@ -161,6 +162,7 @@ public class BTAEnviarDocumento implements AcaoRotinaJava {
       shipment_order_volume_invoice.put("invoice_cfop", cfop);
       volume.put("shipment_order_volume_invoice", shipment_order_volume_invoice);
       shipment_order_volume_array.put(volume);
+      count++;
     } 
     body.put("shipment_order_volume_array", shipment_order_volume_array);
     context.setMensagemRetorno(body.toString());
@@ -176,6 +178,7 @@ public class BTAEnviarDocumento implements AcaoRotinaJava {
       mensagem.append("<b>NF:</b> " + tgfCabVO.asBigDecimalOrZero("NUMNOTA") + " <b>Intelipost ID:</b> " + json.getJSONObject("content").get("id").toString() + "<br>");
       linha.setCampo("AD_STATUSINTELIPOST", "C");
     } catch (Exception exception) {
+      exception.printStackTrace();
       linha.setCampo("AD_STATUSINTELIPOST", "E");
       context.mostraErro("Erro ao enviar para Intelipost: <br><br>" + exception.getMessage() + "<br><br>Payload: <br><br>" + body.toString());
     } 
